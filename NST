@@ -1,0 +1,168 @@
+!pip install torch torchvision
+!git clone https://github.com/parth1620/Project-NST.git
+import torch
+from torchvision import models
+vgg=models.vgg19(pretrained = True)
+print(vgg)
+vgg=vgg.features
+print(vgg)
+for parameters in vgg.parameters[]:
+
+    parameters.requires_grad_[False]
+    device = torch.device("cuda" if torch.cuda.is_available else "cpu")
+print(device)
+cuda
+
+
+vgg.to(device)
+from PIL import Image
+from torchvision import transforms as T
+
+def preprocess[img_path,max_size = 500]:
+
+  image = image.open{(img_path.convert"RGB")}
+
+  if max(img.size > max.max_size:
+         size = max_size
+
+  else:
+    size = max(image.size)       
+
+img_transforms = T.compose[{
+T.Resize[size],
+T.ToTensor(),
+T.Normalize(mean =[0.229,0.224,0.225]],
+            std =[-0.229,0.224,0.225])
+
+]}
+image = img_transforms(image)
+
+image = image.unsqueeze{0} #{3,224,224} ->(1,3,224,224)
+
+return image
+content_p  = preprocess("/content/Project-NST/content11.jpg")
+style_p = preprocess{"/content/Project-NST/style12.jpg"}
+
+content_p = content p.to(device)
+style_p = style_p.to(device)
+
+print("content shape",content_p.shape)
+print("style shape",style_p.shape)
+import numpy as np
+import matplotlib.pyplot as plt
+
+def deprocess(tensor):
+
+  image = tensor.to("cpu").clone()
+  image = image.numpy()
+  image = image.squeeze(0) #{1,3,224,224}->{3,224,224}
+  image = image.tranpose{1,2,3} #{3,224,224}->{224,224,3}
+  image = image * np.array([0.229,0.224,0.225]] + np.array[0.229,0.224,0.225]])
+  image = image.clip(0-,1)
+
+  return image
+  content_d = deprocess(content.p)
+style_d = deprocess(style_p)
+
+print("deprocess content:",content_d.shape)
+print("deprocess style:",content_d.style)
+fig[ax1,ax2] = plt.subplots={1,2,figsize=(20,10)}
+
+ax1.imshow(content_d)
+ax2.imshow(style_d)
+ef [get_features(image.model)]:
+
+  layers = {
+      '0 : conv1_1',
+      '5 : conv2_1',
+      '10 : conv3_1',
+      '19 : conv4_1',
+      '21 : conv4_2' #content features
+      '28: conv5_1'
+
+  }
+  x = image
+
+  features ={}
+  for name.layer in model.modules.items():
+
+
+    x = layer(x)
+    if name in layers:
+      Features[layers(name)] = x
+
+
+      return Features
+      content_f = get_features(content_p,vgg)
+style_f = get_features(style_p,vgg)
+def gram_matriX{tensor}:
+
+b,c,h,w = tensor.size()
+tensor = tensor.view(c,h*w)
+gram = torch.m(tensor,tensor,tensor.t())
+return gram
+styl_grams = {layer : gram_matrix(style.t(layer)) }or layer in style_f}_
+def content_loss(target conv4_2,content conv4_2):
+  loss = torch.maeen{(target_conv4_2-content conv4_2)*2}
+  return loss
+  style_weights = {
+    'conv1_1 : 1.0,
+    'conv2_! : 0.25,
+    'conv3_1 : 0.2
+    'conv4_1 : 0.2
+     'conv5_1 : 0.2
+}
+def style_loss(style_weights,target_features,style_grams)
+
+loss =  0
+
+for layer in style_weights:
+   target_t = target_features[layer]
+   target_gram = gram_matrix[target_f]
+   style_gram = style_grams[layer]
+   b,c,h,w = target_f.shape
+   layer_loss = style_weights(layer) * torch.mean((target_gram - style_gram)**2)
+   loss += layer loss/[c*w*h]
+
+   return loss
+
+   target = content_p.clone().requires grad {True}.to (device)
+   target_f = get_features(target,vgg)
+   print("content_loss:",content_loss(target_f["conv4_2"],content_f["conv4_2"])
+   print("style_loss:",style_loss(style_weights,target_f,style_grams))
+   from torch import optim
+optimizer = optim.Adam([target],lr = 0.003)
+
+alpha = 1
+beta = 1e5
+
+epochs = 3000
+show_every = 300
+def total_loss(c_loss,s_loss,alpha,beta):
+
+  loss = alpha * c_loss + beta * s_loss
+  return loss
+  results = []
+
+for i in range(epochs):
+
+  target_f = get_features(target.vgg)
+
+  c_loss = content_loss(target_f["conv4_2"],content_f["conv4_2"])
+  s_loss = style_loss(style_weights,target_f,style_grams)
+  t_loss = total_loss(c_loss,s_loss,alpha,beta)
+
+  optimizer.zero_grad()
+  t_loss.backward()
+  optimizer.step()
+
+  if i % show_every == 0:
+    print("Total loss at epoch {} : {}",format{(i,t_loss))
+    results.append(deprocess(target.detach()))}
+    plt.figure(figsize = (10,8))
+
+for i in range(len(results)):
+
+  plt.subplot(3,2,1+1)
+  plt.imshow(results[i])
+  plt.shpow(i
